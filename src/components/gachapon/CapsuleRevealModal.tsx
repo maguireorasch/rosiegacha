@@ -85,11 +85,12 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
   onGetAnother,
   onClose,
 }) => {
-  const [stage, setStage] = useState<'rolling' | 'closed' | 'wobbling' | 'opened'>(
-    fromCollection ? 'opened' : 'rolling'
-  );
+  const [stage, setStage] = useState<
+    'rolling' | 'closed' | 'wobbling' | 'splitting' | 'opened'
+  >(fromCollection ? 'opened' : 'rolling');
 
   const meta = CAPSULE_CATEGORIES[capsule.color];
+  const isSplitting = stage === 'splitting';
   const isOpened = stage === 'opened';
 
   useEffect(() => {
@@ -128,8 +129,11 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
     setStage('wobbling');
     gachaponAudio.playCapsuleOpen();
     window.setTimeout(() => {
-      setStage('opened');
-      gachaponAudio.playRewardReveal();
+      setStage('splitting');
+      window.setTimeout(() => {
+        setStage('opened');
+        gachaponAudio.playRewardReveal();
+      }, 360);
     }, 420);
   };
 
@@ -161,11 +165,13 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
             ? 'A Little Reminder For You ♡'
             : stage === 'rolling'
               ? 'Here Comes Your Capsule!'
-              : 'Tap Your Capsule To Open!'}
+              : isSplitting || stage === 'wobbling'
+                ? 'Opening Your Capsule...'
+                : 'Tap Your Capsule To Open!'}
         </h2>
 
         {/* Animated Rolling + Splitting Capsule Stage */}
-        <div className="relative my-5 flex min-h-[268px] flex-col items-center justify-center">
+        <div className="relative my-5 flex min-h-[250px] flex-col items-center justify-center">
           {burstItems.length > 0 && (
             <div
               aria-hidden="true"
@@ -191,8 +197,8 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
             </div>
           )}
 
-          {/* Floor Rolling Shadow */}
-          {!isOpened && (
+          {/* Floor Rolling Shadow (Removed once opened) */}
+          {!isOpened && !isSplitting && (
             <div
               aria-hidden="true"
               className={`absolute bottom-3 h-4 w-36 rounded-full bg-[#4E2639]/20 blur-md ${
@@ -201,8 +207,8 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
             />
           )}
 
-          {/* Two-Half Gachapon Capsule */}
-          {!fromCollection && (
+          {/* Two-Half Gachapon Capsule (Removed completely after opening!) */}
+          {!fromCollection && !isOpened && (
             <div
               onClick={stage === 'closed' ? handleOpenCapsule : undefined}
               className={`relative flex flex-col items-center justify-center ${
@@ -213,17 +219,17 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
             >
               <div
                 aria-hidden="true"
-                className={`absolute h-36 w-36 rounded-full blur-2xl transition-all duration-500 ${
-                  isOpened ? 'opacity-80 scale-125' : 'opacity-30 scale-90'
+                className={`absolute h-36 w-36 rounded-full blur-2xl transition-all duration-300 ${
+                  isSplitting ? 'opacity-90 scale-150' : 'opacity-30 scale-90'
                 }`}
                 style={{ backgroundColor: meta.glowHex }}
               />
 
               {/* Top Colored Dome */}
               <div
-                className={`relative z-20 h-22 w-44 rounded-t-full border-2 border-white overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  isOpened
-                    ? '-translate-y-24 -translate-x-10 -rotate-[22deg] scale-75 opacity-95'
+                className={`relative z-20 h-22 w-44 rounded-t-full border-2 border-white overflow-hidden transition-all duration-350 ease-out ${
+                  isSplitting
+                    ? '-translate-y-20 -translate-x-8 -rotate-[24deg] scale-75 opacity-0'
                     : 'group-hover:-translate-y-1.5'
                 }`}
                 style={{
@@ -236,16 +242,16 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
 
               {/* Seam Band */}
               <div
-                className={`z-20 h-2.5 w-46 rounded-full border border-[#EAD0DC] bg-white shadow-sm transition-all duration-300 ${
-                  isOpened ? 'opacity-0 scale-x-125' : 'opacity-100'
+                className={`z-20 h-2.5 w-46 rounded-full border border-[#EAD0DC] bg-white shadow-sm transition-all duration-200 ${
+                  isSplitting ? 'opacity-0 scale-x-125' : 'opacity-100'
                 }`}
               />
 
               {/* Bottom Frosted White Dome */}
               <div
-                className={`relative z-20 flex h-22 w-44 items-center justify-center rounded-b-full border-2 border-white bg-gradient-to-b from-white to-[#FFF0F6] transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  isOpened
-                    ? 'translate-y-24 translate-x-10 rotate-[20deg] scale-75 opacity-95'
+                className={`relative z-20 flex h-22 w-44 items-center justify-center rounded-b-full border-2 border-white bg-gradient-to-b from-white to-[#FFF0F6] transition-all duration-350 ease-out ${
+                  isSplitting
+                    ? 'translate-y-20 translate-x-8 rotate-[22deg] scale-75 opacity-0'
                     : 'group-hover:translate-y-1.5'
                 }`}
               >
@@ -254,12 +260,10 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
             </div>
           )}
 
-          {/* Collectible Reminder Card */}
+          {/* Collectible Reminder Card (Shown cleanly without capsule after opening) */}
           {isOpened && (
             <div
-              className={`animate-card-unfold relative z-10 w-full rounded-3xl border-2 border-white p-6 shadow-[0_14px_34px_rgba(78,38,57,0.14)] ${
-                fromCollection ? '' : '-my-12'
-              }`}
+              className="animate-card-unfold relative z-10 w-full rounded-3xl border-2 border-white p-6 shadow-[0_14px_34px_rgba(78,38,57,0.14)]"
               style={{ backgroundColor: meta.cardTint }}
             >
               <div className="flex items-center justify-between text-xs font-semibold text-[#844864]">
@@ -296,7 +300,7 @@ export const CapsuleRevealModal: React.FC<CapsuleRevealModalProps> = ({
           >
             {stage === 'rolling'
               ? 'ROLLING OUT...'
-              : stage === 'wobbling'
+              : stage === 'wobbling' || isSplitting
                 ? 'OPENING...'
                 : 'OPEN CAPSULE ♡'}
           </button>

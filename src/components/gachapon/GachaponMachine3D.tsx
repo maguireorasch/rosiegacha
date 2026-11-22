@@ -9,6 +9,7 @@ interface GachaponMachine3DProps {
   spinSignal: number;
   dispensedColor: CapsuleColor | null;
   hasDispensedInTray: boolean;
+  remainingCount: number;
   onPhaseChange: (next: GachaponPhase) => void;
   onRequestSpin: () => void;
   onTrayCapsuleClick: () => void;
@@ -68,6 +69,7 @@ export const GachaponMachine3D: React.FC<GachaponMachine3DProps> = ({
   spinSignal,
   dispensedColor,
   hasDispensedInTray,
+  remainingCount,
   onPhaseChange,
   onRequestSpin,
   onTrayCapsuleClick,
@@ -78,6 +80,7 @@ export const GachaponMachine3D: React.FC<GachaponMachine3DProps> = ({
   const phaseRef = useRef<GachaponPhase>(phase);
   const dispensedColorRef = useRef<CapsuleColor | null>(dispensedColor);
   const hasTrayRef = useRef<boolean>(hasDispensedInTray);
+  const remainingCountRef = useRef<number>(remainingCount);
   const onPhaseRef = useRef(onPhaseChange);
   const onRequestSpinRef = useRef(onRequestSpin);
   const onTrayClickRef = useRef(onTrayCapsuleClick);
@@ -85,6 +88,7 @@ export const GachaponMachine3D: React.FC<GachaponMachine3DProps> = ({
   phaseRef.current = phase;
   dispensedColorRef.current = dispensedColor;
   hasTrayRef.current = hasDispensedInTray;
+  remainingCountRef.current = remainingCount;
   onPhaseRef.current = onPhaseChange;
   onRequestSpinRef.current = onRequestSpin;
   onTrayClickRef.current = onTrayCapsuleClick;
@@ -614,24 +618,27 @@ export const GachaponMachine3D: React.FC<GachaponMachine3DProps> = ({
     };
 
     const domeCapsules: DomeCapsule[] = [];
-    for (let i = 0; i < 38; i++) {
-      const cColor = CAPSULE_COLORS[i % CAPSULE_COLORS.length];
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * 0.72;
-      const startPos = new THREE.Vector3(
-        Math.cos(angle) * dist,
-        0.72 + Math.floor(i / 10) * 0.34 + Math.random() * 0.12,
-        Math.sin(angle) * dist
-      );
-      const group = createCapsule(cColor, startPos);
-      domeCapsules.push({
-        group,
-        color: cColor,
-        pos: startPos,
-        vel: new THREE.Vector3(0, 0, 0),
-        radius: capsuleRadius,
-      });
-    }
+    const spawnDomeCapsules = (count: number) => {
+      for (let i = 0; i < count; i++) {
+        const cColor = CAPSULE_COLORS[i % CAPSULE_COLORS.length];
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 0.72;
+        const startPos = new THREE.Vector3(
+          Math.cos(angle) * dist,
+          0.72 + Math.floor(i / 10) * 0.34 + Math.random() * 0.12,
+          Math.sin(angle) * dist
+        );
+        const group = createCapsule(cColor, startPos);
+        domeCapsules.push({
+          group,
+          color: cColor,
+          pos: startPos,
+          vel: new THREE.Vector3(0, 0, 0),
+          radius: capsuleRadius,
+        });
+      }
+    };
+    spawnDomeCapsules(Math.max(0, Math.min(50, remainingCountRef.current)));
 
     // Tray Capsule Group (Dispensed Winner)
     let trayCapsule: THREE.Group | null = null;
@@ -832,6 +839,14 @@ export const GachaponMachine3D: React.FC<GachaponMachine3DProps> = ({
             trayCapsuleHitMesh = null;
           }
           const winColor = dispensedColorRef.current || 'pink';
+          // Remove one capsule from inside the glass dome as it dispenses!
+          if (domeCapsules.length > 0) {
+            let removeIdx = domeCapsules.findIndex((c) => c.color === winColor);
+            if (removeIdx === -1) removeIdx = 0;
+            const [removedCap] = domeCapsules.splice(removeIdx, 1);
+            machine.remove(removedCap.group);
+          }
+
           const winnerGroup = createCapsule(
             winColor,
             new THREE.Vector3(-0.14, -0.78, 0.84)
@@ -861,7 +876,17 @@ export const GachaponMachine3D: React.FC<GachaponMachine3DProps> = ({
         }
       }
 
-      // Clear tray capsule if modal opened or reset
+      // Refill dome if collection was reset
+      if (
+        remainingCountRef.current > domeCapsules.length + (hasTrayRef.current ? 1 : 0) &&
+        currentPhase === 'idle'
+      ) {
+        const toAdd =
+          remainingCountRef.current - domeCapsules.length - (hasTrayRef.current ? 1 : 0);
+        spawnDomeCapsules(Math.min(50, toAdd));
+      }
+
+      // Clear tray capsule once opened/removed
       if (!hasTrayRef.current && trayCapsule) {
         machine.remove(trayCapsule);
         trayCapsule = null;

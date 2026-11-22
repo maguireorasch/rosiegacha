@@ -426,6 +426,7 @@ export function App() {
                 spinSignal={spinSignal}
                 dispensedColor={pendingCapsule?.color ?? null}
                 hasDispensedInTray={Boolean(pendingCapsule)}
+                remainingCount={50 - collectedCount}
                 onPhaseChange={setPhase}
                 onRequestSpin={drawNextCapsule}
                 onTrayCapsuleClick={handleOpenTrayCapsule}
